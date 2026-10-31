@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <base href="./" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Serverless retro terminal BBS establishing encrypted WebRTC mesh networks via air-gapped optical QR code handshakes" />
+  <title>RETRO-NET BBS | Serverless WebRTC QR Terminal</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- Vendored QR Decoder Fallback -->
+  <script src="./js/vendor/jsQR.js"></script>
+</head>
+<body>
+
+  <!-- Vintage CRT Monitor Outer Bezel Housing -->
+  <div class="crt-housing">
+
+    <!-- Top Bezel Control Panel -->
+    <header class="bezel-top">
+      <div class="bezel-brand">
+        <span class="led-indicator"></span>
+        <span>RETRO-NET VT-100 BBS</span>
+        <span id="peer-count-badge" class="peer-badge">0 PEERS</span>
+      </div>
+      <div class="bezel-controls">
+        <button id="btn-connect" class="bezel-btn btn-primary" title="Initiate Optical QR WebRTC Handshake">Optical Connect</button>
+        <button id="btn-pair" class="bezel-btn" title="Instant Local Tab BroadcastChannel Pairing">Pair Tab</button>
+        <button id="btn-theme" class="bezel-btn" title="Cycle Phosphor CRT Colors">Phosphor</button>
+        <button id="btn-sound" class="bezel-btn" title="Toggle Mechanical Audio">Sound: ON</button>
+        <button id="btn-help" class="bezel-btn" title="Display BBS Help Manual">Help</button>
+        <button id="btn-clear" class="bezel-btn" title="Clear Screen">Clear</button>
+      </div>
+    </header>
+
+    <!-- CRT Phosphor Screen Area -->
+    <main class="crt-screen theme-green">
+      <!-- Scrollable Terminal Buffer -->
+      <div id="terminal-output" class="terminal-container" tabindex="0"></div>
+
+      <!-- Command Input Prompt Bar -->
+      <footer class="terminal-input-bar">
+        <span id="terminal-prompt" class="prompt">[NODE-LOCAL] &gt;</span>
+        <input
+          id="command-input"
+          class="command-input"
+          type="text"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="Type /help or message..."
+          autofocus
+        />
+      </footer>
+    </main>
+
+  </div>
+
+  <!-- Hidden Native File Picker for /dropfile -->
+  <input type="file" id="hidden-file-input" style="display: none;" />
+
+  <!-- Optical QR Signaling & Pairing Dialog -->
+  <dialog id="signaling-modal" class="retro-modal">
+    <div class="modal-header">
+      <span>&#9632; OPTICAL WEBRTC SIGNALING HANDSHAKE</span>
+      <button id="btn-close-modal" class="modal-close-btn">[X] CLOSE</button>
+    </div>
+
+    <!-- Mode Navigation Tabs -->
+    <nav class="modal-tabs">
+      <button id="tab-mode-host" class="modal-tab active">1. HOST (GENERATE OFFER)</button>
+      <button id="tab-mode-join" class="modal-tab">2. JOIN (SCAN OFFER)</button>
+      <button id="tab-mode-local" class="modal-tab">3. DUAL-TAB PAIR</button>
+      <button id="tab-mode-manual" class="modal-tab">4. MANUAL / CLIPBOARD</button>
+    </nav>
+
+    <div class="modal-body">
+
+      <!-- SECTION 1: HOST OFFER -->
+      <section id="section-host">
+        <div id="host-qr-box" class="qr-display-box">
+          <p id="host-status-text" class="dim">GATHERING ICE CANDIDATES &amp; COMPRESSING SDP...</p>
+          <div class="qr-canvas-wrapper">
+            <canvas id="qr-canvas" width="240" height="240"></canvas>
+          </div>
+          <div class="qr-status-row">
+            <span id="qr-counter">[1/1]</span>
+            <div class="progress-track">
+              <div id="qr-progress-bar" class="progress-fill"></div>
+            </div>
+          </div>
+          <p class="dim" style="text-align: center; max-width: 440px;">
+            Point the joining peer's camera at this cycling QR stream. Once they scan it, their device will generate an Answer QR code.
+          </p>
+          <button id="btn-host-scan-answer" class="action-btn" style="margin-top: 10px;">
+            &rArr; SWITCH TO SCAN JOINER'S ANSWER QR
+          </button>
+        </div>
+
+        <div id="host-cam-box" class="hidden">
+          <p class="dim" style="margin-bottom: 8px;">Point your camera at the Joiner's Answer QR code stream:</p>
+          <div class="scanner-viewfinder">
+            <video id="scanner-video" playsinline muted autoplay></video>
+            <div class="scanner-overlay">
+              <div class="target-crosshair"></div>
+              <div id="scanner-hud" class="scanner-hud">INITIALIZING OPTICAL SENSOR...</div>
+            </div>
+            <canvas id="scanner-canvas" style="display: none;"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: JOIN SCAN -->
+      <section id="section-join" class="hidden">
+        <div id="join-cam-box">
+          <p class="dim" style="margin-bottom: 8px;">Point your camera at the Host's cycling Offer QR stream:</p>
+          <div class="scanner-viewfinder">
+            <video id="join-scanner-video" playsinline muted autoplay></video>
+            <div class="scanner-overlay">
+              <div class="target-crosshair"></div>
+              <div id="join-scanner-hud" class="scanner-hud">READY: AIM AT HOST SCREEN...</div>
+            </div>
+            <canvas id="join-scanner-canvas" style="display: none;"></canvas>
+          </div>
+        </div>
+
+        <div id="join-qr-box" class="qr-display-box hidden">
+          <p class="success" style="font-weight: bold;">OFFER RECEIVED! SHOW THIS ANSWER QR STREAM TO HOST:</p>
+          <div class="qr-canvas-wrapper">
+            <canvas id="join-qr-canvas" width="240" height="240"></canvas>
+          </div>
+          <div class="qr-status-row">
+            <span id="join-qr-counter">[1/1]</span>
+            <div class="progress-track">
+              <div id="join-qr-progress-bar" class="progress-fill"></div>
+            </div>
+          </div>
+          <p class="dim">Signaling will complete automatically once the Host scans this screen.</p>
+        </div>
+      </section>
+
+      <!-- SECTION 3: LOCAL DUAL-TAB BROADCASTCHANNEL PAIRING -->
+      <section id="section-local" class="hidden">
+        <div class="manual-box">
+          <p class="info" style="font-weight: bold;">INSTANT LOCAL DUAL-TAB AUTO-PAIRING</p>
+          <p class="dim">
+            Test multi-peer BBS without needing two webcams! Open this site in another browser tab on your computer,
+            then click the button below. The two tabs will automatically negotiate WebRTC DataChannels over a local BroadcastChannel in under 1 second.
+          </p>
+          <button id="btn-run-local-pair" class="action-btn" style="margin: 14px 0;">
+            &rArr; PAIR WITH LOCAL TAB NOW
+          </button>
+          <p class="dim">Command shortcut: You can also simply type <code>/pair</code> directly into the terminal!</p>
+        </div>
+      </section>
+
+      <!-- SECTION 4: MANUAL / CLIPBOARD SIGNALING -->
+      <section id="section-manual" class="hidden">
+        <div class="manual-box">
+          <p class="dim"><strong>Host (Step 1): Copy Your Offer SDP</strong></p>
+          <textarea id="manual-offer-text" class="manual-textarea" readonly></textarea>
+          <button id="btn-copy-offer" class="action-btn">Copy Offer to Clipboard</button>
+
+          <p class="dim" style="margin-top: 14px;"><strong>Host (Step 2): Paste Joiner's Answer SDP</strong></p>
+          <textarea id="manual-answer-text" class="manual-textarea" placeholder="Paste peer Answer SDP JSON here..."></textarea>
+          <button id="btn-apply-answer" class="action-btn">Connect with Answer</button>
+
+          <hr style="border-color: var(--border-color); margin: 16px 0;" />
+
+          <p class="dim"><strong>Joiner Flow: Paste Host's Offer to Generate Answer</strong></p>
+          <textarea id="manual-join-offer-text" class="manual-textarea" placeholder="Paste Host Offer JSON here..."></textarea>
+          <button id="btn-apply-offer" class="action-btn">Generate Answer from Offer</button>
+
+          <p class="dim" style="margin-top: 10px;"><strong>Generated Joiner Answer:</strong></p>
+          <textarea id="manual-join-answer-output" class="manual-textarea" readonly placeholder="Generated Answer will appear here..."></textarea>
+        </div>
+      </section>
+
+    </div>
+  </dialog>
+
+  <!-- Application Entry Point (ES Module) -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
